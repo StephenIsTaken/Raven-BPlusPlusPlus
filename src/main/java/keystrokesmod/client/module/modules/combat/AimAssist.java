@@ -70,6 +70,7 @@ public class AimAssist extends Module { //TODO: Patch GCD
                             return;
                     }
                 }
+                if (Raven.moduleManager.getModuleByClazz(KillAura.class).isEnabled()) return;
 
                 if (!weaponOnly.isToggled() || Utils.Player.isPlayerHoldingWeapon()) {
                 
