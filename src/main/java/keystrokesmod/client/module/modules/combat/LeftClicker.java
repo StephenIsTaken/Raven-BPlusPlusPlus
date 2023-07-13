@@ -37,7 +37,8 @@ import net.minecraftforge.fml.relauncher.ReflectionHelper;
 public class LeftClicker extends Module {
     public static DescriptionSetting bestWithDelayRemover;
     public static SliderSetting jitterLeft, hitSelectTick;
-    public static TickSetting weaponOnly, sound, breakBlocks;
+    public static TickSetting weaponOnly, sound, breakBlocks,extraRandomization;
+    ;
     public static DoubleSliderSetting leftCPS;
     public static TickSetting inventoryFill, hitSelect;
 
@@ -59,6 +60,9 @@ public class LeftClicker extends Module {
     private Method playerMouseInput;
     public EntityLivingBase target;
 
+    private boolean tickSettingEnabled = true;
+
+
     public LeftClicker() {
         super("Left Clicker", ModuleCategory.combat);
 
@@ -68,6 +72,7 @@ public class LeftClicker extends Module {
         this.registerSetting(inventoryFill = new TickSetting("Inventory fill", false));
         this.registerSetting(weaponOnly = new TickSetting("Weapon only", false));
         this.registerSetting(breakBlocks = new TickSetting("Break blocks", false));
+        this.registerSetting(extraRandomization = new TickSetting("Extra Randomization", false));
         this.registerSetting(hitSelect = new TickSetting("Hit Select", false));
         this.registerSetting(hitSelectTick = new SliderSetting("HitSelect Hurttick", 7, 1, 10, 1));
 
@@ -166,11 +171,7 @@ public class LeftClicker extends Module {
                 .nextDouble(leftCPS.getInputMin() - 0.2D, leftCPS.getInputMax());
         double leftHoldLength = speedLeft1 / io.netty.util.internal.ThreadLocalRandom.current()
                 .nextDouble(leftCPS.getInputMin() - 0.02D, leftCPS.getInputMax());
-        // If none of the buttons are allowed to click, what is the point in generating
-        // clicktimes anyway?
-        // if (!leftActive && !rightActive) {
-        // return;
-        // }
+        // tried make it bypass :)
         Mouse.poll();
         if ((mc.currentScreen != null) || !mc.inGameHasFocus) {
             doInventoryClick();
@@ -363,6 +364,20 @@ public class LeftClicker extends Module {
             } else
 				this.genLeftTimings();
     }
+    public void generateClickTimings() {
+        double clickSpeed = 1.0 / ThreadLocalRandom.current().nextDouble(leftCPS.getInputMin() - 0.2D, leftCPS.getInputMax());
+        long delay = (long) (1000.0 / clickSpeed);
+
+        if (extraRandomization.isToggled()) {
+            double extraRandomizationValue = 0.5;
+            clickSpeed += (clickSpeed * extraRandomizationValue * ThreadLocalRandom.current().nextDouble(-1, 1));
+            delay += (long) (delay * extraRandomizationValue * ThreadLocalRandom.current().nextDouble(-1, 1));
+        }
+
+        this.leftUpTime = System.currentTimeMillis() + delay;
+        this.leftDownTime = (System.currentTimeMillis() + (delay / 2L)) - (long) this.rand.nextInt(10);
+    }
+
 
     public enum ClickStyle {
         Raven, SKid

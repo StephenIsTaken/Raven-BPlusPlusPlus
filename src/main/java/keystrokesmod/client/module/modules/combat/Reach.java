@@ -6,6 +6,7 @@ import keystrokesmod.client.module.setting.impl.DoubleSliderSetting;
 import keystrokesmod.client.module.modules.combat.KillAura;
 import keystrokesmod.client.module.setting.impl.TickSetting;
 import keystrokesmod.client.utils.Utils;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Reach extends Module {
     public static DoubleSliderSetting reach;
@@ -29,10 +30,10 @@ public class Reach extends Module {
 
     public static double getReach() {
         la = (KillAura) Raven.moduleManager.getModuleByClazz(KillAura.class);
-        if(la != null && la.isEnabled())
+        if (la != null && la.isEnabled())
             return KillAura.reach.getInput();
 
-        double normal = mc.playerController.extendedReach()? 5 : 3;
+        double normal = mc.playerController.extendedReach() ? 5 : 3;
 
         if (!Utils.Player.isPlayerInGame() || (weapon_only.isToggled() && !Utils.Player.isPlayerHoldingWeapon()))
             return normal;
@@ -44,6 +45,10 @@ public class Reach extends Module {
         if (sprint_only.isToggled() && !mc.thePlayer.isSprinting())
             return normal;
 
-        return Utils.Client.ranModuleVal(reach, Utils.Java.rand()) + (mc.playerController.extendedReach()? 2 : 0);
+        double reachValue = Utils.Client.ranModuleVal(reach, Utils.Java.rand()) + (mc.playerController.extendedReach() ? 2 : 0);
+        double randomOffset = ThreadLocalRandom.current().nextDouble(-0.2, 0.2); // Adjust the range as needed
+        reachValue += randomOffset;
+
+        return reachValue;
     }
 }

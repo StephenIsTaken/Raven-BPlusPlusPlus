@@ -30,11 +30,16 @@ public class WTap extends Module {
     public DoubleSliderSetting actionMs;
     public DoubleSliderSetting hitPer;
     public int hits, rhit;
+    public TickSetting autoCombo;
     public boolean call, p;
     public long s;
+
+    private boolean firstHit = false;
     private WtapState state = WtapState.NONE;
     private final CoolDown timer = new CoolDown(0);
     private Entity target;
+    private double enemyGroundY;
+
 
     public Random r = new Random();
 
@@ -42,17 +47,9 @@ public class WTap extends Module {
         super("WTap", ModuleCategory.combat);
 
         this.registerSetting(eventType = new ComboSetting("Event:", EventType.Attack));
-        this.registerSetting(onlyPlayers = new TickSetting("Only combo players", true));
-        this.registerSetting(onlySword = new TickSetting("Only sword", false));
-
-        this.registerSetting(waitMs = new DoubleSliderSetting("Release w for ... ms", 30, 40, 1, 300, 1));
-        this.registerSetting(actionMs = new DoubleSliderSetting("WTap after ... ms", 20, 30, 1, 300, 1));
-        this.registerSetting(hitPer = new DoubleSliderSetting("Once every ... hits", 1, 1, 1, 10, 1));
-        this.registerSetting(chance = new SliderSetting("Chance %", 100, 0, 100, 1));
-        this.registerSetting(range = new SliderSetting("Range: ", 3, 1, 6, 0.05));
+        this.registerSetting(autoCombo = new TickSetting("Auto Combo", false));
 
         this.registerSetting(dynamic = new TickSetting("Dynamic tap time", false));
-        this.registerSetting(tapMultiplier = new SliderSetting("wait time sensitivity", 1F, 0F, 5F, 0.1F));
     }
 
     @Subscribe
@@ -64,38 +61,69 @@ public class WTap extends Module {
         } else if (state == WtapState.TAPPING && timer.hasFinished()) {
             finishCombo();
         }
+
+        // Check enemy position for hit algorithm
+        if (autoCombo.isToggled() && target != null && state != WtapState.NONE) {
+            double targetPosY = target.posY - target.getYOffset();
+            enemyGroundY = targetPosY - 2; // Set enemyGroundY 2 pixels below the ground
+
+            // Perform hit algorithm
+            if (mc.thePlayer.posY >= enemyGroundY && mc.thePlayer.posY <= enemyGroundY + 0.2) {
+                performHit();
+            }
+        }
     }
+
 
     @Subscribe
     public void onForgeEvent(ForgeEvent fe) {
+        if (!autoCombo.isToggled())
+            return;
+
         if (fe.getEvent() instanceof AttackEntityEvent) {
-            AttackEntityEvent e = ((AttackEntityEvent) fe.getEvent());
+            AttackEntityEvent e = (AttackEntityEvent) fe.getEvent();
 
             target = e.target;
 
-            if (isSecondCall() && eventType.getMode() == EventType.Attack)
-                wTap();
+            if (isSecondCall() && eventType.getMode() == EventType.Attack) {
+                if (!firstHit) {
+                    firstHit = true;
+                    startCombo();
+                } else {
+                    wTap();
+                }
+            }
         } else if (fe.getEvent() instanceof LivingUpdateEvent) {
-            LivingUpdateEvent e = ((LivingUpdateEvent) fe.getEvent());
+            LivingUpdateEvent e = (LivingUpdateEvent) fe.getEvent();
 
             if (eventType.getMode() == EventType.Hurt && e.entityLiving.hurtTime > 0
-                    && e.entityLiving.hurtTime == e.entityLiving.maxHurtTime && e.entity == this.target)
-                wTap();
+                    && e.entityLiving.hurtTime == e.entityLiving.maxHurtTime && e.entity == this.target) {
+                if (!firstHit) {
+                    firstHit = true;
+                    startCombo();
+                } else {
+                    wTap();
+                }
+            }
         }
     }
 
+
     public void wTap() {
-        if (state != WtapState.NONE)
+        if (!autoCombo.isToggled() || state != WtapState.NONE)
             return;
-        if (!(Math.random() <= chance.getInput() / 100)) {
-            hits++;
+
+        // Check enemy position for combo
+        if (target != null) {
+            double targetPosY = target.posY - target.getYOffset();
+            enemyGroundY = targetPosY - 2; // Set enemyGroundY 2 pixels below the ground
+
+            if (mc.thePlayer.posY >= enemyGroundY && mc.thePlayer.posY <= enemyGroundY + 0.2) {
+                trystartCombo();
+            }
         }
-        if (mc.thePlayer.getDistanceToEntity(target) > range.getInput()
-                || (onlyPlayers.isToggled() && !(target instanceof EntityPlayer))
-                || (onlySword.isToggled() && !Utils.Player.isPlayerHoldingSword()) || !(rhit >= hits))
-            return;
-        trystartCombo();
     }
+
 
     public void finishCombo() {
         if (Keyboard.isKeyDown(mc.gameSettings.keyBindForward.getKeyCode())) {
@@ -106,12 +134,14 @@ public class WTap extends Module {
         int easports = (int) (hitPer.getInputMax() - hitPer.getInputMin() + 1);
         rhit = ThreadLocalRandom.current().nextInt((easports));
         rhit += (int) hitPer.getInputMin();
+        firstHit = false;
     }
 
     public void startCombo() {
         state = WtapState.TAPPING;
         KeyBinding.setKeyBindState(mc.gameSettings.keyBindForward.getKeyCode(), false);
         double cd = ThreadLocalRandom.current().nextDouble(waitMs.getInputMin(), waitMs.getInputMax() + 0.01);
+        enemyGroundY = 0;
         if (dynamic.isToggled()) {
             if (target != null) {
                 cd = 3 - mc.thePlayer.getDistanceToEntity(target) < 3
@@ -130,6 +160,18 @@ public class WTap extends Module {
                 (long) ThreadLocalRandom.current().nextDouble(actionMs.getInputMin(), actionMs.getInputMax() + 0.01));
         timer.start();
     }
+
+    private void performHit() {
+        // Perform hit action here
+        // For example:
+        mc.thePlayer.swingItem(); // Swing the player's hand or item
+
+        // Reset the timer for the next hit
+        double cd = ThreadLocalRandom.current().nextDouble(waitMs.getInputMin(), waitMs.getInputMax() + 0.01);
+        timer.setCooldown((long) cd);
+        timer.start();
+    }
+
 
     private boolean isSecondCall() {
         if (call) {

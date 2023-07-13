@@ -25,7 +25,7 @@ import net.minecraft.util.BlockPos;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 public class AimAssist extends Module { //TODO: Patch GCD
-    public static SliderSetting speedYaw, complimentYaw, speedPitch, complimentPitch;
+    public static SliderSetting speedModifier;
     public static SliderSetting fov;
     public static SliderSetting distance;
     public static SliderSetting pitchOffSet;
@@ -41,11 +41,8 @@ public class AimAssist extends Module { //TODO: Patch GCD
     public AimAssist() {
         super("AimAssist", ModuleCategory.combat);
         this.registerSetting(new DescriptionSetting("Set targets in Client->Targets"));
-        this.registerSetting(speedYaw = new SliderSetting("Speed 1 (yaw)", 45.0D, 5.0D, 100.0D, 1.0D));
-        this.registerSetting(complimentYaw = new SliderSetting("Speed 2 (yaw)", 15.0D, 2D, 97.0D, 1.0D));
-        this.registerSetting(speedPitch = new SliderSetting("Speed 1 (pitch)", 45.0D, 5.0D, 100.0D, 1.0D));
-        this.registerSetting(complimentPitch = new SliderSetting("Speed 2 (pitch)", 15.0D, 2D, 97.0D, 1.0D));
-        this.registerSetting(pitchOffSet = new SliderSetting("pitchOffSet (blocks)", 4D, -2, 2, 0.050D));
+        this.registerSetting(speedModifier = new SliderSetting("Speed ", 50.0D, 5.0D, 100.0D, 1.0D));
+        this.registerSetting(pitchOffSet = new SliderSetting("PitchOffSet (blocks)", 4D, 0, 4, 0.050D));
         this.registerSetting(clickAim = new TickSetting("Click aim", true));
         this.registerSetting(breakBlocks = new TickSetting("Break blocks", true));
         this.registerSetting(weaponOnly = new TickSetting("Weapon only", false));
@@ -71,7 +68,7 @@ public class AimAssist extends Module { //TODO: Patch GCD
                 if (Raven.moduleManager.getModuleByClazz(KillAura.class).isEnabled()) return;
 
                 if (!weaponOnly.isToggled() || Utils.Player.isPlayerHoldingWeapon()) {
-                
+
                     Module autoClicker = Raven.moduleManager.getModuleByClazz(RightClicker.class); // right clicker???????????
                     // what if player clicking but mouse not down ????
                     if ((clickAim.isToggled() && Utils.Client.autoClickerClicking())
@@ -85,12 +82,12 @@ public class AimAssist extends Module { //TODO: Patch GCD
                                 double n = Utils.Player.fovFromEntity(en);
                                 if ((n > 1.0D) || (n < -1.0D)) {
                                     double complimentSpeed = n
-                                            * (ThreadLocalRandom.current().nextDouble(complimentYaw.getInput() - 1.47328,
-                                                    complimentYaw.getInput() + 2.48293) / 100);
+                                            * (ThreadLocalRandom.current().nextDouble(speedModifier.getInput() - 1.47328,
+                                            speedModifier.getInput() + 2.48293) / 100);
                                     float val = (float) (-(complimentSpeed + (n / (101.0D - (float) ThreadLocalRandom.current()
-                                            .nextDouble(speedYaw.getInput() - 4.723847, speedYaw.getInput())))));
+                                            .nextDouble(speedModifier.getInput() - 4.723847, speedModifier.getInput())))));
                                     mc.thePlayer.rotationYaw += val;
-                                    
+
                                     //Bypass for anticheats with rotation checks xd - ok
                                     mc.thePlayer.rotationPitch += Math.random() * 0.2 - 0.1;
                                     mc.thePlayer.rotationPitch = Math.max(mc.thePlayer.rotationPitch, -90);
@@ -99,13 +96,13 @@ public class AimAssist extends Module { //TODO: Patch GCD
                                 if (aimPitch.isToggled()) {
                                     double complimentSpeed = Utils.Player.PitchFromEntity(en,
                                             (float) pitchOffSet.getInput())
-                                            * (ThreadLocalRandom.current().nextDouble(complimentPitch.getInput() - 1.47328,
-                                                    complimentPitch.getInput() + 2.48293) / 100);
+                                            * (ThreadLocalRandom.current().nextDouble(speedModifier.getInput() - 1.47328,
+                                            speedModifier.getInput() + 2.48293) / 100);
 
                                     float val = (float) (-(complimentSpeed
                                             + (n / (101.0D - (float) ThreadLocalRandom.current()
-                                                    .nextDouble(speedPitch.getInput() - 4.723847,
-                                                            speedPitch.getInput())))));
+                                            .nextDouble(speedModifier.getInput() - 4.723847,
+                                                    speedModifier.getInput())))));
 
                                     mc.thePlayer.rotationPitch += val;
                                     //Bypass for anticheats with rotation checks xd
@@ -124,7 +121,7 @@ public class AimAssist extends Module { //TODO: Patch GCD
     }
 
     public Entity getEnemy() {
-       return Targets.getTarget();
+        return Targets.getTarget();
     }
 
     public static void addFriend(Entity entityPlayer) {

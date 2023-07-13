@@ -20,6 +20,7 @@ import net.minecraft.world.WorldSettings;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import org.apache.commons.lang3.RandomUtils;
 
+
 import com.google.common.eventbus.Subscribe;
 
 import keystrokesmod.client.module.Module;
@@ -56,7 +57,9 @@ public class KillAura extends Module {
     /**
      * @Author Cosmic-SC
      * @Since 10/6/2023
-     * @CodeQuality GOOD.
+     * @NEWCHANGES by Plague Ghost
+     * @in 13/7/2023
+     * @CodeQuality SHIT.
      */
     public KillAura() {
         super("KillAura", ModuleCategory.combat);
@@ -95,7 +98,7 @@ public class KillAura extends Module {
      * Legit can be used on anticheats that flag when attacking with the other clicker (intave, polar, grim etc)
      */
     @Subscribe
-    public void onTick(TickEvent event){
+    public void onTick(TickEvent event) {
         if (!Utils.Player.isPlayerInGame()) return;
 
         if (target != null && Utils.Player.isPlayerHoldingSword()) {
@@ -107,7 +110,17 @@ public class KillAura extends Module {
         }
 
         if (!legitAttack.isToggled()) return;
-        if (target != null){
+        if (target != null) {
+            //double distance = Utils.Player(target.getPosition(), mc.thePlayer.getPosition());
+
+            // Adjust the clicking speed based on the enemy's distance
+            double maxDistance = 5.0; // Maximum distance threshold
+            double minDistance = 1.0;  // Minimum distance threshold
+            double maxSpeed = 1.0;     // Maximum clicking speed (clicks per second)
+            double minSpeed = 0.2;     // Minimum clicking speed (clicks per second)
+
+            //double speed = ((distance - minDistance) / (maxDistance - minDistance)) * (maxSpeed - minSpeed) + minSpeed;
+
             if (System.currentTimeMillis() - lastClick > speed * 1000) {
                 lastClick = System.currentTimeMillis();
                 if (hold < lastClick) {
@@ -165,16 +178,42 @@ public class KillAura extends Module {
     /**
      * Rotations are done below
      */
+    private boolean isZeroDegree(float yaw) {
+        return yaw == 0;
+    }
+
+    private boolean isTwentyFiveDegree(float yaw) {
+        return yaw == 25;
+    }
+
+    private boolean holdingRightButton = false;
+    private long blockHitStartTime = 0;
+    private static final long BLOCK_HIT_DURATION = 30; // milliseconds
+    private static final double REACH = 3.1;
+
     @Subscribe
     public void onRotationUpdate(UpdateEvent e) {
-        if(!Utils.Player.isPlayerInGame() || locked) {
+        if (!Utils.Player.isPlayerInGame() || locked) {
             return;
         }
 
-        float[] currentRots = new float[]{yaw,pitch};
-        float[] prevRots = new float[]{prevYaw,prevPitch};
-        float[] cappedRots = new float[]{maxAngleChange(prevRots[0],currentRots[0], (float) rps.getInput()), maxAngleChange(prevRots[1],currentRots[1], (float) rps.getInput())};
-        float[] gcd = getGCDRotations(customRPS.isToggled() ? cappedRots : currentRots,prevRots);
+        float[] currentRots = new float[]{yaw, pitch};
+        float[] prevRots = new float[]{prevYaw, prevPitch};
+        float[] cappedRots = new float[]{maxAngleChange(prevRots[0], currentRots[0], (float) rps.getInput()),
+                maxAngleChange(prevRots[1], currentRots[1], (float) rps.getInput())};
+        float[] gcd = getGCDRotations(customRPS.isToggled() ? cappedRots : currentRots, prevRots);
+
+        // Apply the "angel checkpoint" logic
+        if (isZeroDegree(gcd[0])) {
+            blockHit();
+            maintainDistance(REACH);
+        } else if (isTwentyFiveDegree(gcd[0])) {
+            blockHit();
+            if (isZeroDegree(gcd[0])) {
+                gcd[0] = 45; // Move to 45 degrees
+            }
+        }
+
         e.setYaw(gcd[0]);
         e.setPitch(gcd[1]);
 
@@ -185,24 +224,37 @@ public class KillAura extends Module {
         prevYaw = e.getYaw();
         prevPitch = e.getPitch();
     }
+
+    private void blockHit() {
+        if (holdingRightButton && (System.currentTimeMillis() - blockHitStartTime) >= BLOCK_HIT_DURATION) {
+            mc.rightClickMouse();
+            blockHitStartTime = System.currentTimeMillis();
+        }
+    }
+
+    private void maintainDistance(double reach) {
+    }
+
     @Subscribe
-    public void onJumpFix(JumpEvent event){
+    public void onJumpFix(JumpEvent event) {
         event.setYaw(yaw);
     }
+
     @Subscribe
     public void move(MoveInputEvent e) {
-        if(!fixMovement.isToggled() || locked) return;
+        if (!fixMovement.isToggled() || locked) return;
         e.setYaw(yaw);
     }
 
     @Subscribe
     public void lookEvent(LookEvent e) {
-        if(locked) return;
+        if (locked) return;
         e.setPrevYaw(prevYaw);
         e.setPrevPitch(prevPitch);
         e.setYaw(yaw);
         e.setPitch(pitch);
     }
+
 
     /**
      * Visuals
@@ -214,13 +266,14 @@ public class KillAura extends Module {
             try { //@reason fix nullpointers
                 int red = (int) (((20 - target.getHealth()) * 13) > 255 ? 255 : (20 - target.getHealth()) * 13);
                 int green = 255 - red;
-                final int rgb = new Color(red, green, 0).getRGB();
+                final int rgb = new Color(0, green, 0).getRGB(); // Set the color to green
                 Utils.HUD.drawBoxAroundEntity(target, 2, 0, 0, rgb, false);
                 for (EntityPlayer p : pTargets)
                     Utils.HUD.drawBoxAroundEntity(p, 2, 0, 0, 0x800000FF, false);
             } catch (Exception e){}
         }
     }
+
     /**
      * Misc Stuff. Utils are below
      */
