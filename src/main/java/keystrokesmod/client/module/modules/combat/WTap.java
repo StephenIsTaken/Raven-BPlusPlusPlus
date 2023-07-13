@@ -67,7 +67,7 @@ public class WTap extends Module {
             double targetPosY = target.posY - target.getYOffset();
             enemyGroundY = targetPosY - 2; // Set enemyGroundY 2 pixels below the ground
 
-            // Perform hit algorithm
+            //hit algorithm
             if (mc.thePlayer.posY >= enemyGroundY && mc.thePlayer.posY <= enemyGroundY + 0.2) {
                 performHit();
             }
@@ -113,7 +113,7 @@ public class WTap extends Module {
         if (!autoCombo.isToggled() || state != WtapState.NONE)
             return;
 
-        // Check enemy position for combo
+        //enemy position for combo
         if (target != null) {
             double targetPosY = target.posY - target.getYOffset();
             enemyGroundY = targetPosY - 2; // Set enemyGroundY 2 pixels below the ground
@@ -162,11 +162,10 @@ public class WTap extends Module {
     }
 
     private void performHit() {
-        // Perform hit action here
-        // For example:
-        mc.thePlayer.swingItem(); // Swing the player's hand or item
+        //hit here
+        mc.thePlayer.swingItem();
 
-        // Reset the timer for the next hit
+        // Reset the timer
         double cd = ThreadLocalRandom.current().nextDouble(waitMs.getInputMin(), waitMs.getInputMax() + 0.01);
         timer.setCooldown((long) cd);
         timer.start();
